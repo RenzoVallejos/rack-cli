@@ -1,0 +1,6 @@
+asset_id,hostname,device_type,rack,k2_ip,lan_ip,bmc_ip,location,status
+A12345,host-001,server,Rack-12,10.0.0.1,192.168.1.101,172.16.0.101,DC-West-1,active
+A12346,host-002,server,Rack-12,10.0.0.2,192.168.1.102,172.16.0.102,DC-West-1,active
+A12347,host-003,server,Rack-13,10.0.0.3,192.168.1.103,172.16.0.103,DC-West-1,offline
+S98765,switch-01,switch,Rack-01,10.1.0.1,192.168.10.1,,DC-West-1,active
+S98766,switch-02,switch,Rack-01,10.1.0.2,192.168.10.2,,DC-West-1,maintenance
