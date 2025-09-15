@@ -1,21 +1,28 @@
 import csv
 import os
+from rich.console import Console
+from rich.table import Table
 
-def list_hosts(status=None, platform=None, hostname=None, usagetype=None, location=None, checkout_owner=None, search_all=None):
+console = Console()
+
+def list_hosts(
+    status=None, platform=None, hostname=None,
+    usagetype=None, location=None, checkout_owner=None,
+    search_all=None
+):
     csv_path = os.path.join("data", "mock_hosts.csv")
     if not os.path.exists(csv_path):
-        print("CSV file not found:", csv_path)
+        console.print(f"[red]❌ CSV file not found:[/red] {csv_path}")
         return
 
-    with open(csv_path, newline='') as csvfile:
+    with open(csv_path, newline="") as csvfile:
         reader = csv.DictReader(csvfile)
-        print("\nAll Hosts:\n")
+        rows = []
+
         for row in reader:
-            # Case-insensitive exact match for status
+            # Apply filters
             if status and row['Status'].lower() != status.lower():
                 continue
-
-            # Fuzzy filters (case-insensitive)
             if platform and platform.lower() not in row['Platform'].lower():
                 continue
             if hostname and hostname.lower() not in row['Hostname'].lower():
@@ -26,18 +33,42 @@ def list_hosts(status=None, platform=None, hostname=None, usagetype=None, locati
                 continue
             if checkout_owner and checkout_owner.lower() not in row['Checkout Owner'].lower():
                 continue
-
-            # Global fuzzy search across all fields
             if search_all:
-                # Check if the search term appears in ANY column value
-                match_found = any(
-                    search_all.lower() in str(value).lower() for value in row.values()
-                )
-                if not match_found:
+                if not any(search_all.lower() in str(v).lower() for v in row.values()):
                     continue
+            rows.append(row)
 
-            print(f"{row['AssetId']} - {row['Hostname']} "
-                  f"({row['Status']}, Platform: {row['Platform']}, "
-                  f"Usage: {row['Usage Type']}, Location: {row['Location']}, "
-                  f"Owner: {row['Checkout Owner']})")
+    if not rows:
+        console.print("[yellow]⚠️ No hosts found with given filters[/yellow]")
+        return
+
+    # Color mapping for Status
+    status_colors = {
+        "Available": "green",
+        "Pending": "yellow",
+        "Reserved": "blue",
+        "Scrapped": "red",
+    }
+
+    # Build pretty table
+    table = Table(show_header=True, header_style="bold magenta")
+    columns = ["AssetId", "Hostname", "Status", "Platform", "Usage Type", "Location", "Checkout Owner"]
+
+    for col in columns:
+        table.add_column(col, style="cyan")
+
+    for row in rows:
+        status_value = row["Status"]
+        status_colored = f"[{status_colors.get(status_value, 'white')}]{status_value}[/{status_colors.get(status_value, 'white')}]"
+        table.add_row(
+            row["AssetId"],
+            row["Hostname"],
+            status_colored,
+            row["Platform"],
+            row["Usage Type"],
+            row["Location"],
+            row["Checkout Owner"],
+        )
+
+    console.print(table)
 
