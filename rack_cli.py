@@ -8,6 +8,7 @@ from commands.summary import summary
 
 
 @click.group()
+@click.version_option("0.1.0")
 def cli():
     """Rack CLI - Manage datacenter host, rack & switch information"""
     pass

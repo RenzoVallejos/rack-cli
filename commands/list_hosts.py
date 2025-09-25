@@ -1,74 +1,42 @@
-import csv
-import os
-from rich.console import Console
-from rich.table import Table
+import click
+import json
+from api_client import get_hosts  # fetches from mock_api via requests
 
-console = Console()
 
-def list_hosts(
-    status=None, platform=None, hostname=None,
-    usagetype=None, location=None, checkout_owner=None,
-    search_all=None
-):
-    csv_path = os.path.join("data", "mock_hosts.csv")
-    if not os.path.exists(csv_path):
-        console.print(f"[red]❌ CSV file not found:[/red] {csv_path}")
+@click.command()
+@click.option("--status", default=None, help="Filter hosts by status")
+@click.option("--platform", default=None, help="Filter hosts by platform")
+@click.option("--hostname", default=None, help="Filter hosts by hostname")
+@click.option("--usagetype", default=None, help="(unused in mock API) Filter hosts by usage type")
+@click.option("--location", default=None, help="(unused in mock API) Filter hosts by location")
+@click.option("--checkout-owner", default=None, help="(unused in mock API) Filter hosts by checkout owner")
+@click.option("--search-all", is_flag=True, help="Search all hosts")
+def list_hosts_cmd(status, platform, hostname, usagetype, location, checkout_owner, search_all):
+    """CLI entrypoint for listing hosts."""
+    list_hosts(status, platform, hostname, usagetype, location, checkout_owner, search_all)
+
+
+def list_hosts(status=None, platform=None, hostname=None,
+               usagetype=None, location=None,
+               checkout_owner=None, search_all=False):
+    """
+    Retrieve and display host information from the API in pretty JSON format.
+    """
+
+    hosts = get_hosts(
+        status=status,
+        platform=platform,
+        hostname=hostname,
+        usagetype=usagetype,
+        location=location,
+        checkout_owner=checkout_owner,
+        search_all=search_all
+    )
+
+    if not hosts:
+        click.echo("[]")  # empty JSON array
         return
 
-    with open(csv_path, newline="") as csvfile:
-        reader = csv.DictReader(csvfile)
-        rows = []
-
-        for row in reader:
-            # Apply filters
-            if status and row['Status'].lower() != status.lower():
-                continue
-            if platform and platform.lower() not in row['Platform'].lower():
-                continue
-            if hostname and hostname.lower() not in row['Hostname'].lower():
-                continue
-            if usagetype and usagetype.lower() not in row['Usage Type'].lower():
-                continue
-            if location and location.lower() not in row['Location'].lower():
-                continue
-            if checkout_owner and checkout_owner.lower() not in row['Checkout Owner'].lower():
-                continue
-            if search_all:
-                if not any(search_all.lower() in str(v).lower() for v in row.values()):
-                    continue
-            rows.append(row)
-
-    if not rows:
-        console.print("[yellow]⚠️ No hosts found with given filters[/yellow]")
-        return
-
-    # Color mapping for Status
-    status_colors = {
-        "Available": "green",
-        "Pending": "yellow",
-        "Reserved": "blue",
-        "Scrapped": "red",
-    }
-
-    # Build pretty table
-    table = Table(show_header=True, header_style="bold magenta")
-    columns = ["AssetId", "Hostname", "Status", "Platform", "Usage Type", "Location", "Checkout Owner"]
-
-    for col in columns:
-        table.add_column(col, style="cyan")
-
-    for row in rows:
-        status_value = row["Status"]
-        status_colored = f"[{status_colors.get(status_value, 'white')}]{status_value}[/{status_colors.get(status_value, 'white')}]"
-        table.add_row(
-            row["AssetId"],
-            row["Hostname"],
-            status_colored,
-            row["Platform"],
-            row["Usage Type"],
-            row["Location"],
-            row["Checkout Owner"],
-        )
-
-    console.print(table)
+    # Print as pretty JSON
+    click.echo(json.dumps(hosts, indent=4))
 

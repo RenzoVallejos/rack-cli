@@ -1,41 +1,20 @@
-import csv
-import os
-from rich.console import Console
-from rich.table import Table
+import json
+import click
+from api_client import get_hosts
 
-console = Console()
-
-def lookup_host(asset_id):
+def lookup_host(asset_id: str):
+    """
+    Find a host by asset_id and display its details in pretty JSON format.
+    """
     if not asset_id:
-        console.print("[red]❌ Please provide an asset ID using --asset-id[/red]")
+        click.echo('{"error": "Please provide an asset ID using --asset-id"}')
         return
 
-    csv_path = os.path.join("data", "mock_hosts.csv")
-    if not os.path.exists(csv_path):
-        console.print(f"[red]❌ CSV file not found:[/red] {csv_path}")
-        return
+    hosts = get_hosts()
+    match = next((h for h in hosts if h.get("asset_id") == asset_id), None)
 
-    with open(csv_path, newline="") as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            if row["AssetId"] == asset_id:
-                table = Table(title=f"Host Details for {asset_id}", show_header=False)
-
-                # Status color mapping
-                status_colors = {
-                    "Available": "green",
-                    "Pending": "yellow",
-                    "Reserved": "blue",
-                    "Scrapped": "red",
-                }
-
-                for key, value in row.items():
-                    if key == "Status":
-                        value = f"[{status_colors.get(value, 'white')}]{value}[/{status_colors.get(value, 'white')}]"
-                    table.add_row(key, str(value))
-
-                console.print(table)
-                return
-
-    console.print(f"[yellow]⚠️ Asset ID '{asset_id}' not found[/yellow]")
+    if match:
+        click.echo(json.dumps(match, indent=4))
+    else:
+        click.echo(f'{{"warning": "Asset ID {asset_id} not found"}}')
 

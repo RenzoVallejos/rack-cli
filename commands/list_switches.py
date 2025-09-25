@@ -1,40 +1,34 @@
-import csv
-import os
-from rich.console import Console
-from rich.table import Table
+import click
+import json
+from api_client import get_switches  # fetches from mock_api via requests
 
-console = Console()
 
-def list_switches():
-    csv_path = os.path.join("data", "mock_switches.csv")
-    if not os.path.exists(csv_path):
-        console.print(f"[red]❌ CSV file not found:[/red] {csv_path}")
+@click.command()
+@click.option("--status", default=None, help="Filter switches by status")
+@click.option("--rack", default=None, help="Filter switches by rack")
+@click.option("--location", default=None, help="(unused in mock API) Filter switches by location")
+@click.option("--search-all", is_flag=True, help="Search all switches")
+def list_switches_cmd(status, rack, location, search_all):
+    """CLI entrypoint for listing switches."""
+    list_switches(status, rack, location, search_all)
+
+
+def list_switches(status=None, rack=None, location=None, search_all=False):
+    """
+    Retrieve and display switch information from the API in pretty JSON format.
+    """
+
+    switches = get_switches(
+        status=status,
+        rack=rack,
+        location=location,
+        search_all=search_all,
+    )
+
+    if not switches:
+        click.echo("[]")  # empty JSON array
         return
 
-    with open(csv_path, newline="") as csvfile:
-        reader = csv.DictReader(csvfile)
-        rows = list(reader)
-
-    if not rows:
-        console.print("[yellow]⚠️ No switches found[/yellow]")
-        return
-
-    table = Table(show_header=True, header_style="bold magenta")
-    columns = ["Asset ID", "Name", "Switchmodel", "Associated Racks", "Port Count", "Speed", "Location"]
-
-    for col in columns:
-        table.add_column(col, style="cyan")
-
-    for row in rows:
-        table.add_row(
-            row.get("Asset ID", ""),
-            row.get("Name", ""),
-            row.get("Switchmodel", ""),
-            row.get("Associated Racks", ""),
-            row.get("Port Count", ""),
-            row.get("Speed", ""),
-            row.get("Location", ""),
-        )
-
-    console.print(table)
+    # Print as pretty JSON
+    click.echo(json.dumps(switches, indent=4))
 

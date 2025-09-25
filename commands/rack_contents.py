@@ -1,70 +1,38 @@
-import csv
-import os
-from rich.console import Console
-from rich.table import Table
+import click
+import json
+from api_client import get_racks, get_hosts, get_switches
 
-console = Console()
 
-def rack_contents(rack_id):
+def rack_contents(rack_id: str):
+    """
+    Show all hosts and switches in a given rack (JSON format).
+    """
     if not rack_id:
-        console.print("[red]❌ Please provide a rack ID using --rack-id[/red]")
+        click.echo('{"error": "Please provide a rack ID using --rack-id"}')
         return
 
-    racks_path = os.path.join("data", "mock_racks.csv")
-    hosts_path = os.path.join("data", "mock_hosts.csv")
-    switches_path = os.path.join("data", "mock_switches.csv")
+    # Fetch rack info
+    racks = get_racks()
+    rack = next((r for r in racks if r.get("rack_id") == rack_id), None)
 
-    # First, find rack location from rack_id
-    rack_location = None
-    if os.path.exists(racks_path):
-        with open(racks_path, newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                if row.get("Rack ID") == rack_id:
-                    rack_location = row.get("Location")
-                    break
+    if not rack:
+        click.echo(f'{{"warning": "Rack {rack_id} not found"}}')
+        return
 
-    console.print(f"\n[bold magenta]Contents of Rack {rack_id}[/bold magenta]\n")
+    # Fetch hosts & switches
+    hosts = get_hosts()
+    rack_hosts = [h for h in hosts if h.get("rack") == rack_id]
 
-    # --- Hosts ---
-    if rack_location and os.path.exists(hosts_path):
-        with open(hosts_path, newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            hosts = [row for row in reader if row.get("Location") == rack_location]
+    switches = get_switches()
+    rack_switches = [s for s in switches if s.get("rack") == rack_id]
 
-        if hosts:
-            table = Table(title=f"Hosts (Location: {rack_location})", show_header=True, header_style="bold cyan")
-            columns = ["AssetId", "Hostname", "Status", "Platform", "Usage Type", "Checkout Owner"]
+    # Build combined result
+    result = {
+        "rack": rack,
+        "hosts": rack_hosts,
+        "switches": rack_switches,
+    }
 
-            for col in columns:
-                table.add_column(col, style="cyan")
-
-            for h in hosts:
-                table.add_row(*(h.get(col, "") for col in columns))
-
-            console.print(table)
-        else:
-            console.print(f"[yellow]⚠️ No hosts found in rack {rack_id} (Location: {rack_location})[/yellow]")
-    else:
-        console.print("[yellow]⚠️ Could not determine rack location or no hosts CSV found[/yellow]")
-
-    # --- Switches ---
-    if os.path.exists(switches_path):
-        with open(switches_path, newline="") as csvfile:
-            reader = csv.DictReader(csvfile)
-            switches = [row for row in reader if row.get("Associated Racks") == rack_id]
-
-        if switches:
-            table = Table(title="Switches", show_header=True, header_style="bold cyan")
-            columns = ["Asset ID", "Name", "Switchmodel", "Port Count", "Speed"]
-
-            for col in columns:
-                table.add_column(col, style="cyan")
-
-            for s in switches:
-                table.add_row(*(s.get(col, "") for col in columns))
-
-            console.print(table)
-        else:
-            console.print("[yellow]⚠️ No switches found in this rack[/yellow]")
+    # Output JSON
+    click.echo(json.dumps(result, indent=4))
 
