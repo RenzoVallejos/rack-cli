@@ -13,8 +13,8 @@ ready for scripting with `jq` or automation pipelines.
 
 ## Setup
 ```bash
-git clone https://github.com/your-username/rack-cli.git
-cd /filepath/rack-cli
+git clone https://github.com/your-username/labops.git
+cd /filepath/labops
 # Create a virtual environment (recommended)
 python -m venv venv
 source venv/bin/activate  # On Windows use venv\Scripts\activate
